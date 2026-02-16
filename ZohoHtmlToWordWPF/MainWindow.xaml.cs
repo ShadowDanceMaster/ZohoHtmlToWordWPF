@@ -1,23 +1,11 @@
-using System.IO;
-using System.Text;
+﻿using System.IO;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using Microsoft.WindowsAPICodePack.Dialogs;
-using System.Windows.Shapes;
-using Spire.Doc.Formatting;
 using System.ComponentModel;
-using static System.Net.Mime.MediaTypeNames;
-using Application = System.Windows.Application;
-using Newtonsoft.Json.Linq;
 using System.Windows.Threading;
 using MahApps.Metro.Controls;
-using System.Runtime.InteropServices;
 
 namespace ZohoHtmlToWordWPF
 {
@@ -30,24 +18,25 @@ namespace ZohoHtmlToWordWPF
         private ManualResetEventSlim pauseEvent = new ManualResetEventSlim(true);
         private CancellationTokenSource cts;
         private volatile bool isPaused = false;
+        private readonly object _pauseLock = new object();
+        private readonly object _lockObj = new object();
         static string exportPath = "../../../Тест";
         static string importPath = "../../../Импорт";
         static string defaultPath = "../../../";
         static bool windowOpened = false;
         static List<string> htmlContents = new List<string>();
         static bool exportDirChosen = false, importDirChosen = false;
-        private readonly object _lockObj = new object();
+        
         private delegate void UpdateProgressBarDelegate(System.Windows.DependencyProperty dp1, System.Windows.DependencyProperty dp2, Object value);
         public MainWindow()
         {
             if (!windowOpened)
             {
                 InitializeComponent();
-                
+
                 windowOpened = true;
                 ClearRtbConsole();
                 SetProgBars();
-                SetBgWorker();
             }
         }
         public void WriteLineToRtb(string s)
@@ -79,131 +68,100 @@ namespace ZohoHtmlToWordWPF
             progBarForOneFile.Minimum = 0;
             progBarForOneFile.Maximum = 100;
         }
-        private void SetBgWorker()
+        private async Task ProcessFilesAsync(CancellationToken token)
         {
-            // Создание BackgroundWorker
-            worker = new BackgroundWorker();
-            worker.WorkerReportsProgress = true;
-            worker.WorkerSupportsCancellation = true;
-            worker.DoWork += WorkerDoWork;
-            worker.ProgressChanged += BarsProgressChanged;
-            worker.RunWorkerCompleted += WorkerRunWorkerCompleted;
-        }
-        private void BarsProgressChanged(object sender, ProgressChangedEventArgs e)
-        {
-            Dispatcher.Invoke(() =>
+            WriteLineToRtb("Опускаются сумерки. Поют соловьи, падают тусклые звёзды.");
+
+            await Dispatcher.InvokeAsync(() =>
             {
-                if (e.UserState is ProgressData data)
-                {
-                    progBarForOneFile.Value = data.ProgressOneFile;
-                    progBarForAllFiles.Value = data.ProgressAllFiles;
-
-
-                }
+                progBarForAllFiles.Value = 0;
+                progBarForOneFile.Value = 0;
             });
 
+            #region Чтение HTML файла
+            var fileNames = Directory.GetFiles(exportPath, "*.html");
+            htmlContents.Clear();
 
-        }
-
-        private void WorkerRunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
-        {
-            if (e.Cancelled)
+            foreach (var fileName in fileNames)
             {
-                SingletonForMainWindow.GetInstance().WriteLineToRtb("Отменено!");
-                ProgBarsFinal();
+                token.ThrowIfCancellationRequested();
+                await WaitForResumeAsync(cts.Token);
+                htmlContents.Add(File.ReadAllText($"{fileName}"));
             }
-            else if (e.Error != null)
+            #endregion
+
+            int currentFileIndex = 0;
+            int totalFiles = htmlContents.Count;
+
+            foreach (var htmlContent in htmlContents)
             {
-                SingletonForMainWindow.GetInstance().WriteLineToRtb("Ошибка!");
-            }
-            else
-            {
-                SingletonForMainWindow.GetInstance().WriteLineToRtb("Завершено!");
-                ProgBarsFinal();
-            }
-        }
-        private void WorkerDoWork(object sender, DoWorkEventArgs e)
-        {
-            cts = new CancellationTokenSource();
-            try
-            {
-                SingletonForMainWindow.GetInstance().WriteLineToRtb("Опускаются сумерки. Поют соловьи, падают тусклые звёзды.");
 
-                Dispatcher.Invoke(() => btnPauseResume.IsEnabled = true);
-
-                var progressData = new ProgressData()
-                {
-                    ProgressOneFile = 0,
-                    ProgressAllFiles = 0
-                };
-                worker.ReportProgress(progressData.ProgressAllFiles, progressData);
-
-                #region Чтение HTML файла
-                var fileNames = Directory.GetFiles(exportPath, "*.html");
-                foreach (var fileName in fileNames)
-                {
-
-                    if (worker.CancellationPending || cts.Token.IsCancellationRequested)
-                    {
-                        throw new OperationCanceledException();
-                    }
-                    htmlContents.Add(File.ReadAllText($"{fileName}"));
-                }
+                #region Паршение
+                var parser = new ZohoNoteParser();
+                var parsedNote = parser.ParseHtml(htmlContent);
                 #endregion
-                foreach (var htmlContent in htmlContents)
+
+                // Обновление прогресса для текущего файла
+                await Dispatcher.InvokeAsync(() =>
                 {
+                    progBarForOneFile.Value = 50;
+                });
 
-                    #region Паршение
-                    var parser = new ZohoNoteParser();
-                    var parsedNote = parser.ParseHtml(htmlContent);
-                    #endregion
-                    progressData.ProgressOneFile = 50;
-                    progressData.ProgressAllFiles += 50 / htmlContents.Count;
-                    worker.ReportProgress(progressData.ProgressAllFiles, progressData);
-                    if (worker.CancellationPending || cts.Token.IsCancellationRequested)
-                    {
-                        throw new OperationCanceledException();
-                    }
+                token.ThrowIfCancellationRequested();
+                await WaitForResumeAsync(cts.Token);
+                #region Импорт
+                var importer = new ZohoNotebookSpireImporter();
+                Directory.CreateDirectory(importPath);
+                importer.ImportParsedNoteToWord(parsedNote, importPath, exportPath);
+                #endregion
 
-                    #region Импорт
-                    var importer = new ZohoNotebookSpireImporter();
-                    Directory.CreateDirectory(importPath);
-                    importer.ImportParsedNoteToWord(parsedNote, importPath, exportPath);
-                    #endregion
+                currentFileIndex++;
 
-                    Dispatcher.Invoke(() => progBarForOneFile.Value = 0);
-                    progressData.ProgressOneFile = 99;
-                    progressData.ProgressAllFiles += 50 / htmlContents.Count;
-                    worker.ReportProgress(progressData.ProgressAllFiles, progressData);
-                    // Проверка отмены
-                    if (worker.CancellationPending || cts.Token.IsCancellationRequested)
-                    {
-                        throw new OperationCanceledException();
-                    }
+                // Обновление прогресс-баров
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    progBarForOneFile.Value = 100;
+                    progBarForAllFiles.Value = (int)((double)currentFileIndex / totalFiles * 100);
+                });
 
-                    // Проверка паузы
-                    pauseEvent.Wait(cts.Token);
-                }
-                progressData.ProgressOneFile = 100;
-                progressData.ProgressAllFiles = 100;
-                worker.ReportProgress(progressData.ProgressAllFiles, progressData);
+                // Сброс прогресса для следующего файла
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    progBarForOneFile.Value = 0;
+                });
+
+                token.ThrowIfCancellationRequested();
+                await WaitForResumeAsync(cts.Token);
             }
-            catch (OperationCanceledException ex)
+
+            // Финальное обновление
+            await Dispatcher.InvokeAsync(() =>
             {
-                e.Cancel = true;
+                progBarForOneFile.Value = 100;
+                progBarForAllFiles.Value = 100;
+            });
 
-                SingletonForMainWindow.GetInstance().WriteLineToRtb(ex.Message);
-            }
-            catch (Exception exep)
-            {
-                SingletonForMainWindow.GetInstance().WriteLineToRtb(exep.Message);
-            }
-            e.Result = "Завершено";
-            Dispatcher.Invoke(() => btnPauseResume.IsEnabled = false);
-            Dispatcher.Invoke(() => btnStart.IsEnabled = true);
-
+            WriteLineToRtb("Завершено!");
         }
+        private async Task WaitForResumeAsync(CancellationToken token)
+        {
+            if (!isPaused) return;
 
+            await Task.Run(() =>
+            {
+                lock (_pauseLock)
+                {
+                    while (isPaused && !token.IsCancellationRequested)
+                    {
+                        // Ожидаем сигнала о снятии с паузы или отмены
+                        Monitor.Wait(_pauseLock, TimeSpan.FromMilliseconds(100));
+                    }
+                }
+            }, token);
+
+            token.ThrowIfCancellationRequested();
+        }
+        
         private void btnExport_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new CommonOpenFileDialog();
@@ -259,47 +217,55 @@ namespace ZohoHtmlToWordWPF
             }
         }
 
-        private void btnStart_Click(object sender, RoutedEventArgs e)
+        private async void btnStart_Click(object sender, RoutedEventArgs e)
         {
-            pauseEvent.Set();
             isPaused = false;
-            btnPauseResume.Content = isPaused ? "Продолжить" : "Пауза";
-            if (!worker.IsBusy)
-                worker.RunWorkerAsync();
-            else
-            {
+            btnPauseResume.Content = "Пауза";
+            btnPauseResume.IsEnabled = true;
+            btnStart.IsEnabled = false;
 
+            cts = new CancellationTokenSource();
+
+            try
+            {
+                await ProcessFilesAsync(cts.Token);
             }
+            catch (OperationCanceledException)
+            {
+                WriteLineToRtb("Операция отменена!");
+                ProgBarsFinal();
+            }
+            catch (Exception ex)
+            {
+                WriteLineToRtb($"Ошибка: {ex.Message}");
+            }
+            finally
+            {
+                btnStart.IsEnabled = true;
+                btnPauseResume.IsEnabled = false;
+                btnPauseResume.Content = "Пауза";
+            }
+
         }
 
         private void btnPauseResume_Click(object sender, RoutedEventArgs e)
         {
-            if (!worker.IsBusy) return;
-            btnStart.IsEnabled = false;
-            if (!isPaused)
+            lock (_pauseLock)
             {
-                // Пауза
+                isPaused = !isPaused;
+                btnPauseResume.Content = isPaused ? "Продолжить" : "Пауза";
 
-                pauseEvent.Reset();
-                isPaused = true;
-                Dispatcher.Invoke(() =>
+                // UI оповещение о смене состояния
+                WriteLineToRtb(isPaused ? "Пауза." : "Продолжаем.");
+
+                // Если снимаем с паузы, отправляем сигнал для продолжения
+                if (!isPaused)
                 {
+                    // Этот монитор используется в CheckPauseAsync для ожидания
+                    Monitor.PulseAll(_pauseLock);
+                }
 
-                    SingletonForMainWindow.GetInstance().WriteLineToRtb("Пауза.");
-                });
             }
-            else
-            {
-                // Продолжение
-
-                pauseEvent.Set();
-                isPaused = false;
-                Dispatcher.Invoke(() =>
-                {
-                    SingletonForMainWindow.GetInstance().WriteLineToRtb("Продолжаем.");
-                });
-            }
-            btnPauseResume.Content = isPaused ? "Продолжить" : "Пауза";
         }
 
         private void btnClearRtbConsole_Click(object sender, RoutedEventArgs e)
@@ -309,19 +275,12 @@ namespace ZohoHtmlToWordWPF
 
         private void btnStop_Click(object sender, RoutedEventArgs e)
         {
-            if (worker.IsBusy && worker.WorkerSupportsCancellation)
+            if (cts != null && !cts.IsCancellationRequested)
             {
-                pauseEvent.Reset();
-                isPaused = true;
-                btnPauseResume.Content = isPaused ? "Продолжить" : "Пауза";
-
-                btnStart.IsEnabled = true;
-                worker.CancelAsync(); // Устанавливаем флаг отмены
-                // RunWorkerCompleted вызовется после проверки CancellationPending в DoWork
-                cts?.Cancel();
-                ProgBarsFinal();
-
-
+                isPaused = false; // Снимаем с паузы, чтобы остановка сработала
+                btnPauseResume.Content = "Пауза";
+                cts.Cancel();
+                SingletonForMainWindow.GetInstance().WriteLineToRtb("Остановка операции...");
             }
         }
         private void MinimizeButton_Click(object sender, RoutedEventArgs e)
@@ -364,13 +323,11 @@ namespace ZohoHtmlToWordWPF
         }
         private void ProgBarsFinal()
         {
-            var progressData = new ProgressData()
+            Dispatcher.InvokeAsync(() =>
             {
-                ProgressOneFile = 100,
-                ProgressAllFiles = 100
-            };
-            progBarForOneFile.Dispatcher.Invoke(() => progBarForOneFile.Value = progressData.ProgressOneFile, DispatcherPriority.Background);
-            progBarForAllFiles.Dispatcher.Invoke(() => progBarForAllFiles.Value = progressData.ProgressAllFiles, DispatcherPriority.Background);
+                progBarForOneFile.Value = 100;
+                progBarForAllFiles.Value = 100;
+            }, DispatcherPriority.Background);
         }
         
     }
