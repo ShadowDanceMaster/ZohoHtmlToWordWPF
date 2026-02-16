@@ -1,0 +1,293 @@
+﻿<Controls:MetroWindow x:Class="ZohoHtmlToWordWPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:Controls="http://metro.mahapps.com/winfx/xaml/controls"
+        xmlns:behaviours="http://metro.mahapps.com/winfx/xaml/shared"
+        xmlns:local="clr-namespace:ZohoHtmlToWordWPF"
+        mc:Ignorable="d"
+        ResizeMode="CanMinimize"
+        WindowStyle="None"
+        WindowState="Normal"
+        GlowBrush="Transparent"
+        ShowTitleBar="False"                 
+        ShowMinButton="False"
+        ShowMaxRestoreButton="False"
+        ShowCloseButton="False"
+        TitleCharacterCasing="Normal"
+        Background="#685346"
+        Foreground="Black"
+        FontFamily="Montserrat"
+        Title="Из Блокнота Зохо в Ворд" Height="450" Width="800">
+
+    <Controls:MetroWindow.Resources>
+
+        <Style TargetType="ProgressBar">
+            <Setter Property="Background" Value="#685346"/>
+            <Setter Property="Foreground" Value="#592C13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Border Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="5">
+                            <Grid x:Name="PART_Track">
+                                <Border x:Name="PART_Indicator"
+                                Background="{TemplateBinding Foreground}"
+                                CornerRadius="5"
+                                HorizontalAlignment="Left"/>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+
+        </Style>
+        <!-- Стиль для кнопок управления окном -->
+        <Style x:Key="WindowButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                            BorderThickness="0">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#805346"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#B05346"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Стиль для кнопки закрытия -->
+        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowButtonStyle}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#C42B1C"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
+        <Style TargetType="{x:Type RichTextBox}">
+            <Style.Resources>
+                <Style TargetType="{x:Type Border}">
+                    <Setter Property="CornerRadius" Value="10" />
+                </Style>
+            </Style.Resources>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="FontFamily" Value="Montserrat" />
+            <Setter Property="Background" Value="#AF8C74" />
+            <Setter Property="Foreground" Value="Black" />
+            <Setter Property="Control.FontWeight" Value="Bold"/>
+            <Setter Property="Control.FontSize" Value="10"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border 
+                            x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="10">
+                            <!-- Здесь задаем радиус скругления -->
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                        VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" 
+                                    Value="#9F7C64"/>
+                                <!-- Чуть темнее при наведении -->
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" 
+                                    Value="#8F6C54"/>
+                                <!-- Еще темнее при нажатии -->
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" 
+                                    Value="#CFBCB4"/>
+                                <!-- Светлее, если отключена -->
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+
+        <SolidColorBrush x:Key="MahApps.Brushes.WindowBackground" Color="#685346"/>
+    </Controls:MetroWindow.Resources>
+    <!-- Убираем стандартный заголовок через WindowChrome -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0"
+              ResizeBorderThickness="5"
+              GlassFrameThickness="0"
+              CornerRadius="0"
+              UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+    <!-- Основной контейнер окна -->
+    <Border Background="#685346"
+            CornerRadius="10"
+            BorderBrush="#685346"
+            BorderThickness="1">
+        
+        <!-- Содержимое окна -->
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="30"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Заголовок окна с кнопками управления -->
+            <Grid Grid.Row="0" Background="#685346" MouseLeftButtonDown="Window_MouseLeftButtonDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Заголовок окна -->
+                <TextBlock Text="Из блокнота зохо в ворд" 
+                           VerticalAlignment="Center"
+                           Margin="10,0,0,0"
+                           Foreground="Black"/>
+
+                <!-- ========== СЮДА ВСТАВЛЯЕМ КНОПКИ ========== -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <!-- Кнопка свернуть -->
+                    <Button Style="{StaticResource WindowButtonStyle}"
+                            Click="MinimizeButton_Click"
+                            Content="—"
+                            FontSize="16"
+                            FontWeight="Bold"/>
+
+                    <!-- Кнопка закрыть -->
+                    <Button Style="{StaticResource CloseButtonStyle}"
+                            Click="CloseButton_Click"
+                            Content="✕"
+                            FontSize="14"
+                            FontWeight="Bold"/>
+                </StackPanel>
+                <!-- ========== КОНЕЦ ВСТАВКИ ========== -->
+
+            </Grid>
+
+            <!-- Основной контент окна -->
+            <Grid Grid.Row="1" Margin="10">
+                <Button x:Name="btnExport" Content="Выбрать директорию экспорта" HorizontalAlignment="Left" Height="78" Margin="80,30,0,0" VerticalAlignment="Top" Width="188" Click="btnExport_Click"/>
+                <Button x:Name="btnImport" Content="Выбрать директорию импорта" HorizontalAlignment="Center" Height="78" Margin="0,30,0,0" VerticalAlignment="Top" Width="188" Click="btnImport_Click"/>
+                <Button x:Name="btnStart" Content="Начать" HorizontalAlignment="Right" Height="78" Margin="0,30,80,0" VerticalAlignment="Top" Width="188" IsEnabled="False" Click="btnStart_Click"/>
+
+                <RichTextBox x:Name="rtbConsole" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Height="172" Width="403" Margin="80,0,0,90"
+             Background="#917362" Foreground="Black" FontFamily="Montserrat" HorizontalAlignment="Left" VerticalAlignment="Bottom">
+                    <!-- Стиль для вертикального скроллбара -->
+                    <RichTextBox.Resources>
+                        <Style TargetType="ScrollBar">
+                            <Setter Property="Background" Value="#664634"/>
+                            <Setter Property="Foreground" Value="#592C13"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ScrollBar">
+                                        <Grid x:Name="Bg">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition MaxHeight="18"/>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition MaxHeight="18"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Верхняя стрелка -->
+                                            <RepeatButton x:Name="PART_LineUpButton"
+                                  Grid.Row="0"
+                                  Background="#664634"
+                                  BorderBrush="#592C13"
+                                  BorderThickness="1"
+                                  Command="{x:Static ScrollBar.LineUpCommand}">
+                                                <Path Data="M0,4 L4,0 L8,4 Z"
+                              Fill="#FFE4C4"
+                              Width="8"
+                              Height="4"
+                              Stretch="Fill"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                                            </RepeatButton>
+
+                                            <!-- Трек с ползунком -->
+                                            <Track x:Name="PART_Track"
+                           Grid.Row="1"
+                           ViewportSize="{TemplateBinding ViewportSize}"
+                           IsDirectionReversed="True">
+                                                <Track.Thumb>
+                                                    <Thumb Background="#664634"
+                                   BorderBrush="#592C13"
+                                   BorderThickness="1">
+                                                        <Thumb.Template>
+                                                            <ControlTemplate>
+                                                                <Border Background="#664634"
+                                                BorderBrush="#592C13"
+                                                BorderThickness="1"
+                                                CornerRadius="2"/>
+                                                            </ControlTemplate>
+                                                        </Thumb.Template>
+                                                    </Thumb>
+                                                </Track.Thumb>
+                                            </Track>
+
+                                            <!-- Нижняя стрелка -->
+                                            <RepeatButton x:Name="PART_LineDownButton"
+                                  Grid.Row="2"
+                                  Background="#664634"
+                                  BorderBrush="#592C13"
+                                  BorderThickness="1"
+                                  Command="{x:Static ScrollBar.LineDownCommand}">
+                                                <Path Data="M0,0 L4,4 L8,0 Z"
+                              Fill="#FFE4C4"
+                              Width="8"
+                              Height="4"
+                              Stretch="Fill"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                                            </RepeatButton>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </RichTextBox.Resources>
+                    <FlowDocument>
+
+                        <Paragraph>
+                            <Run Text=""/>
+                        </Paragraph>
+                    </FlowDocument>
+                </RichTextBox>
+
+                <ProgressBar x:Name="progBarForOneFile" HorizontalAlignment="Right" Height="13" Margin="0,0,80,230" VerticalAlignment="Bottom" Width="188"/>
+
+                <ProgressBar x:Name="progBarForAllFiles" HorizontalAlignment="Right" Height="13" Margin="0,0,80,120" VerticalAlignment="Bottom" Width="188"/>
+                <Button x:Name="btnStop" Content="Отмена" HorizontalAlignment="Right" Height="59" Margin="0,0,80,30" VerticalAlignment="Bottom" Width="188" Click="btnStop_Click"/>
+                <Button x:Name="btnClearRtbConsole" Content="Очистить лог" HorizontalAlignment="Left" Height="40" Margin="80,0,0,30" VerticalAlignment="Bottom" Width="188" Click="btnClearRtbConsole_Click"/>
+                <Button x:Name="btnPauseResume" Content="Пауза" HorizontalAlignment="Center" Height="40" VerticalAlignment="Bottom" Width="188" IsEnabled="False" Click="btnPauseResume_Click" Margin="0,0,0,30"/>
+                <Label x:Name="lblCurrentNote" Content="Текущая заметка" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,153,200"/>
+                <Label x:Name="lblAllNotes" Content="Все заметки" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,181,138"/>
+
+            </Grid>
+        </Grid>
+    </Border>
+</Controls:MetroWindow>
+    
