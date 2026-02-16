@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ZohoHtmlToWordWPF")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7f7c858f28b2b96502dfb0a869511caa57bf739f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bc4ca68d2c5d8954de4f9d43f92ef8e9884003d7")]
 [assembly: System.Reflection.AssemblyProductAttribute("ZohoHtmlToWordWPF")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ZohoHtmlToWordWPF")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
