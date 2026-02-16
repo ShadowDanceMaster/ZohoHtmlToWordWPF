@@ -2,3 +2,5 @@
 Тест
 .vs
 /.gitignore.bak
+bin
+obj
