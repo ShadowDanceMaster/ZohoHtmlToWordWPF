@@ -3,9 +3,9 @@ using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Input;
 using Microsoft.WindowsAPICodePack.Dialogs;
-using System.ComponentModel;
 using System.Windows.Threading;
 using MahApps.Metro.Controls;
+using System.Windows.Controls;
 
 namespace ZohoHtmlToWordWPF
 {
@@ -14,10 +14,10 @@ namespace ZohoHtmlToWordWPF
     /// </summary>
     public partial class MainWindow : MetroWindow
     {
-        private BackgroundWorker worker;
-        private ManualResetEventSlim pauseEvent = new ManualResetEventSlim(true);
+        private delegate void UpdateProgressBarDelegate(System.Windows.DependencyProperty dp1, System.Windows.DependencyProperty dp2, Object value);
+        
         private CancellationTokenSource cts;
-        private volatile bool isPaused = false;
+        private volatile bool isPaused = false, isStopped=false;
         private readonly object _pauseLock = new object();
         private readonly object _lockObj = new object();
         static string exportPath = "../../../Тест";
@@ -27,7 +27,7 @@ namespace ZohoHtmlToWordWPF
         static List<string> htmlContents = new List<string>();
         static bool exportDirChosen = false, importDirChosen = false;
         
-        private delegate void UpdateProgressBarDelegate(System.Windows.DependencyProperty dp1, System.Windows.DependencyProperty dp2, Object value);
+        
         public MainWindow()
         {
             if (!windowOpened)
@@ -41,25 +41,7 @@ namespace ZohoHtmlToWordWPF
         }
         public void WriteLineToRtb(string s)
         {
-            lock (_lockObj)
-            {
-                Dispatcher.Invoke(() =>
-            {
-                var instance = SingletonForMainWindow.GetInstance();
-
-                // Важно: проверяем, что документ существует
-                if (instance.rtbConsole.Document == null)
-                {
-                    instance.rtbConsole.Document = new FlowDocument();
-                }
-
-                // Добавляем новый параграф
-                instance.rtbConsole.Document.Blocks.Add(new Paragraph(new Run(s)));
-
-                // Прокручиваем к последней строке
-                instance.rtbConsole.ScrollToEnd();
-            });
-            }
+            rtbConsole.Dispatcher.Invoke(() => { rtbConsole.Document.Blocks.Add(new Paragraph(new Run(s))); }, DispatcherPriority.Background);
         }
         private void SetProgBars()
         {
@@ -72,21 +54,19 @@ namespace ZohoHtmlToWordWPF
         {
             WriteLineToRtb("Опускаются сумерки. Поют соловьи, падают тусклые звёзды.");
 
-            await Dispatcher.InvokeAsync(() =>
-            {
-                progBarForAllFiles.Value = 0;
-                progBarForOneFile.Value = 0;
-            });
+            ChangeProgBars(0, 0);
 
             #region Чтение HTML файла
             var fileNames = Directory.GetFiles(exportPath, "*.html");
             htmlContents.Clear();
-
+            int count = 0;
             foreach (var fileName in fileNames)
             {
-                token.ThrowIfCancellationRequested();
-                await WaitForResumeAsync(cts.Token);
                 htmlContents.Add(File.ReadAllText($"{fileName}"));
+                WriteLineToRtb($"Читаем html номер {count}");
+                count++;
+                token.ThrowIfCancellationRequested();
+                await Pause(cts.Token);
             }
             #endregion
 
@@ -102,67 +82,52 @@ namespace ZohoHtmlToWordWPF
                 #endregion
 
                 // Обновление прогресса для текущего файла
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    progBarForOneFile.Value = 50;
-                });
-
+                
+                ChangeProgBars(50, progBarForAllFiles.Value);
+                WriteLineToRtb($"Распарсили html номер {currentFileIndex}");
                 token.ThrowIfCancellationRequested();
-                await WaitForResumeAsync(cts.Token);
+                await Pause(cts.Token);
                 #region Импорт
                 var importer = new ZohoNotebookSpireImporter();
                 Directory.CreateDirectory(importPath);
                 importer.ImportParsedNoteToWord(parsedNote, importPath, exportPath);
                 #endregion
 
-                currentFileIndex++;
+                
 
                 // Обновление прогресс-баров
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    progBarForOneFile.Value = 100;
-                    progBarForAllFiles.Value = (int)((double)currentFileIndex / totalFiles * 100);
-                });
-
-                // Сброс прогресса для следующего файла
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    progBarForOneFile.Value = 0;
-                });
-
+                
+                ChangeProgBars(100, (int)((double)currentFileIndex / totalFiles * 100));
+                WriteLineToRtb($"Импортировали заметку номер {currentFileIndex}");
+                currentFileIndex++;
                 token.ThrowIfCancellationRequested();
-                await WaitForResumeAsync(cts.Token);
+                await Pause(cts.Token);
+                // Сброс прогресса для следующего файла
+                ChangeProgBars(0, progBarForAllFiles.Value);
+
+
             }
 
             // Финальное обновление
-            await Dispatcher.InvokeAsync(() =>
-            {
-                progBarForOneFile.Value = 100;
-                progBarForAllFiles.Value = 100;
-            });
+            ChangeProgBars(100,100);
 
             WriteLineToRtb("Завершено!");
         }
-        private async Task WaitForResumeAsync(CancellationToken token)
+        private async Task Pause(CancellationToken token)
         {
-            if (!isPaused) return;
-
-            await Task.Run(() =>
+            bool enteredCycle = false;
+            if (isPaused) WriteLineToRtb("Пауза.");
+            while (isPaused)
             {
-                lock (_pauseLock)
-                {
-                    while (isPaused && !token.IsCancellationRequested)
-                    {
-                        // Ожидаем сигнала о снятии с паузы или отмены
-                        Monitor.Wait(_pauseLock, TimeSpan.FromMilliseconds(100));
-                    }
-                }
-            }, token);
-
-            token.ThrowIfCancellationRequested();
+                await Task.Delay(50, token).ConfigureAwait(true);
+                token.ThrowIfCancellationRequested();
+                if (!enteredCycle) enteredCycle = true;
+            }
+            if(enteredCycle)
+                WriteLineToRtb("Продолжаем.");
         }
         
-        private void btnExport_Click(object sender, RoutedEventArgs e)
+        private async void btnExport_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new CommonOpenFileDialog();
             dlg.Title = "Выберите папку с файлами html.";
@@ -185,12 +150,12 @@ namespace ZohoHtmlToWordWPF
                 SingletonForMainWindow.GetInstance().WriteLineToRtb("ПАПКА ЭКСПОРТА ВЫБРАНА: " + exportPath);
                 exportDirChosen = true;
                 if (exportDirChosen && importDirChosen)
-                    btnStart.IsEnabled = true;
+                    ChangeButtonEnable(btnStart, true);
             }
 
         }
 
-        private void btnImport_Click(object sender, RoutedEventArgs e)
+        private async void btnImport_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new CommonOpenFileDialog();
             dlg.Title = "Выберите папку для сохранения заметок.";
@@ -213,27 +178,28 @@ namespace ZohoHtmlToWordWPF
                 SingletonForMainWindow.GetInstance().WriteLineToRtb("ПАПКА ИМПОРТА ВЫБРАНА: " + importPath);
                 importDirChosen = true;
                 if (exportDirChosen && importDirChosen)
-                    btnStart.IsEnabled = true;
+                    ChangeButtonEnable(btnStart, true);
             }
         }
 
         private async void btnStart_Click(object sender, RoutedEventArgs e)
         {
-            isPaused = false;
-            btnPauseResume.Content = "Пауза";
-            btnPauseResume.IsEnabled = true;
-            btnStart.IsEnabled = false;
 
+            
             cts = new CancellationTokenSource();
-
+            Task task;
             try
             {
+                isPaused = false;
+                ChangeButtonEnable(btnPauseResume, true);
+                ChangeButtonContent(btnPauseResume, "Пауза");
+                ChangeButtonEnable(btnStart, false);
                 await ProcessFilesAsync(cts.Token);
             }
             catch (OperationCanceledException)
             {
                 WriteLineToRtb("Операция отменена!");
-                ProgBarsFinal();
+                ChangeProgBars(100,100);
             }
             catch (Exception ex)
             {
@@ -241,31 +207,19 @@ namespace ZohoHtmlToWordWPF
             }
             finally
             {
-                btnStart.IsEnabled = true;
-                btnPauseResume.IsEnabled = false;
-                btnPauseResume.Content = "Пауза";
+                
+                ChangeButtonEnable(btnPauseResume, false);
+                ChangeButtonContent(btnPauseResume, "Пауза");
+                ChangeButtonEnable(btnStart, true);
             }
 
         }
 
         private void btnPauseResume_Click(object sender, RoutedEventArgs e)
-        {
-            lock (_pauseLock)
-            {
-                isPaused = !isPaused;
-                btnPauseResume.Content = isPaused ? "Продолжить" : "Пауза";
+        {            
+            isPaused = !isPaused;
+            btnPauseResume.Content = isPaused ? "Продолжить" : "Пауза";
 
-                // UI оповещение о смене состояния
-                WriteLineToRtb(isPaused ? "Пауза." : "Продолжаем.");
-
-                // Если снимаем с паузы, отправляем сигнал для продолжения
-                if (!isPaused)
-                {
-                    // Этот монитор используется в CheckPauseAsync для ожидания
-                    Monitor.PulseAll(_pauseLock);
-                }
-
-            }
         }
 
         private void btnClearRtbConsole_Click(object sender, RoutedEventArgs e)
@@ -305,28 +259,35 @@ namespace ZohoHtmlToWordWPF
         }
         private void ClearRtbConsole()
         {
-            Dispatcher.Invoke(new Action(() =>
-            {
-                var instance = SingletonForMainWindow.GetInstance();
+            rtbConsole.Dispatcher.Invoke(() => {
+                    var instance = SingletonForMainWindow.GetInstance();
 
-                // Создаем абсолютно новый документ
-                var newDocument = new FlowDocument();
-                newDocument.Blocks.Add(new Paragraph());
+                    // Создаем абсолютно новый документ
+                    var newDocument = new FlowDocument();
+                    newDocument.Blocks.Add(new Paragraph());
 
-                // Заменяем документ
-                instance.rtbConsole.Document = newDocument;
+                    // Заменяем документ
+                    instance.rtbConsole.Document = newDocument;
 
-                // Сбрасываем историю
-                instance.rtbConsole.CaretPosition = instance.rtbConsole.Document.ContentStart;
-            }), DispatcherPriority.Normal);
+                    // Сбрасываем историю
+                    instance.rtbConsole.CaretPosition = instance.rtbConsole.Document.ContentStart;
+                }, DispatcherPriority.Background);
 
         }
-        private void ProgBarsFinal()
+        private void ChangeButtonEnable( Button btn, bool enabled)
         {
-            Dispatcher.InvokeAsync(() =>
-            {
-                progBarForOneFile.Value = 100;
-                progBarForAllFiles.Value = 100;
+            btn.Dispatcher.Invoke(() => { btn.IsEnabled = enabled; }, DispatcherPriority.Background);
+        }
+        private void ChangeButtonContent(Button btn, string content)
+        {
+            btn.Dispatcher.Invoke(() => { btn.Content = content; }, DispatcherPriority.Background);
+                
+        }
+        private void ChangeProgBars(double oneFile, double allFiles)
+        {
+            progBarForAllFiles.Dispatcher.Invoke(() => { 
+                progBarForOneFile.Value = oneFile;
+                progBarForAllFiles.Value = allFiles;
             }, DispatcherPriority.Background);
         }
         
