@@ -6,6 +6,7 @@ using Microsoft.WindowsAPICodePack.Dialogs;
 using System.Windows.Threading;
 using MahApps.Metro.Controls;
 using System.Windows.Controls;
+using Newtonsoft.Json.Linq;
 
 namespace ZohoHtmlToWordWPF
 {
@@ -53,7 +54,6 @@ namespace ZohoHtmlToWordWPF
         private async Task ProcessFilesAsync(CancellationToken token)
         {
             WriteLineToRtb("Опускаются сумерки. Поют соловьи, падают тусклые звёзды.");
-
             ChangeProgBars(0, 0);
 
             #region Чтение HTML файла
@@ -119,7 +119,7 @@ namespace ZohoHtmlToWordWPF
             if (isPaused) WriteLineToRtb("Пауза.");
             while (isPaused)
             {
-                await Task.Delay(50, token).ConfigureAwait(true);
+                await Task.Delay(50, token);
                 token.ThrowIfCancellationRequested();
                 if (!enteredCycle) enteredCycle = true;
             }
