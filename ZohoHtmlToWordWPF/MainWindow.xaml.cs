@@ -97,7 +97,7 @@ namespace ZohoHtmlToWordWPF
 
                 // Обновление прогресс-баров
                 
-                ChangeProgBars(100, (int)((double)currentFileIndex / totalFiles * 100));
+                ChangeProgBars(100, (int)(((double)(currentFileIndex + 1) / totalFiles) * 100));
                 WriteLineToRtb($"Импортировали заметку номер {currentFileIndex}");
                 currentFileIndex++;
                 token.ThrowIfCancellationRequested();
@@ -285,8 +285,10 @@ namespace ZohoHtmlToWordWPF
         }
         private void ChangeProgBars(double oneFile, double allFiles)
         {
-            progBarForAllFiles.Dispatcher.Invoke(() => { 
+            progBarForOneFile.Dispatcher.Invoke(() => {
                 progBarForOneFile.Value = oneFile;
+            }, DispatcherPriority.Background);
+            progBarForAllFiles.Dispatcher.Invoke(() => { 
                 progBarForAllFiles.Value = allFiles;
             }, DispatcherPriority.Background);
         }
