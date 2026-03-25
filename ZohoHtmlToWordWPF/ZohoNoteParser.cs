@@ -162,13 +162,41 @@ namespace ZohoHtmlToWordWPF
                     if (nodes[i].HasAttributes)
                     {
                         nodeAttributes = nodes[i].Attributes;
-                        if(nodeAttributes.Contains("class") && nodeAttributes["class"].Value == "checklist")
+                        var countClassAttrs=0;
+                        if (nodeAttributes.Contains("class"))
                         {
-                            nodeNameObj= NodeNameToNodeEnumsElements("checklist");
-                            htmlTagStack.Push((nodeNameObj, nodeAttributes));
-                            Recursive(nodes[i]);
-                            InitiateHtmlTagStackPop();
-                            continue;
+                            if (nodeAttributes["class"].Value == "checklist")
+                            {
+                                nodeNameObj = NodeNameToNodeEnumsElements("checklist");
+                                htmlTagStack.Push((nodeNameObj, nodeAttributes));
+                                Recursive(nodes[i]);
+                                InitiateHtmlTagStackPop();
+                                continue;
+                            }
+                            if (nodeAttributes["class"].Value == "colour")
+                            {
+                                nodeNameObj = NodeNameToNodeEnumsElements("colour");
+                                htmlTagStack.Push((nodeNameObj, nodeAttributes));
+                                Recursive(nodes[i]);
+                                InitiateHtmlTagStackPop();
+                                continue;
+                            }
+                            if (nodeAttributes["class"].Value == "highlight")
+                            {
+                                nodeNameObj = NodeNameToNodeEnumsElements("highlight");
+                                htmlTagStack.Push((nodeNameObj, nodeAttributes));
+                                Recursive(nodes[i]);
+                                InitiateHtmlTagStackPop();
+                                continue;
+                            }
+                            if (nodeAttributes["class"].Value == "size")
+                            {
+                                nodeNameObj = NodeNameToNodeEnumsElements("size");
+                                htmlTagStack.Push((nodeNameObj, nodeAttributes));
+                                Recursive(nodes[i]);
+                                InitiateHtmlTagStackPop();
+                                continue;
+                            }
                         }
                     }
                     if (nodeNameObj is not null)
@@ -255,6 +283,12 @@ namespace ZohoHtmlToWordWPF
                     return IntersectableContentType.Underlined;
                 case "strike":
                     return IntersectableContentType.Strike;
+                case "colour":
+                    return IntersectableContentType.ColoredText;
+                case "highlight":
+                    return IntersectableContentType.ColoredMarker;
+                case "size":
+                    return IntersectableContentType.ResizedText;
                 case "ol":
                     return ListContentType.NumberedList;
                 case "ul":

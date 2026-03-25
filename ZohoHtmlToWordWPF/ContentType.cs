@@ -38,6 +38,9 @@ namespace ZohoHtmlToWordWPF
         Bold = 2,
         Italic = 4,
         Underlined = 8,
-        Strike = 16
+        Strike = 16,
+        ColoredText = 32,
+        ColoredMarker = 64,
+        ResizedText=128
     }
 }

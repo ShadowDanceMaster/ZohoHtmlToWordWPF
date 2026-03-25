@@ -7,6 +7,7 @@ using Spire.Doc.Fields;
 using System.Drawing;
 using static ZohoHtmlToWordWPF.ZohoNoteParser;
 using Spire.Doc.Formatting;
+using ControlzEx.Standard;
 
 namespace ZohoHtmlToWordWPF
 {
@@ -22,7 +23,7 @@ namespace ZohoHtmlToWordWPF
         public void ImportParsedNoteToWord(ParsedNote parsedNote, string importDir, string exportDir)
         {
             this.exportDir = exportDir;
-            string fullPath = $"{importDir}/{parsedNote.Notebook.Name}/{parsedNote.Title}.docx";
+            string fullPath = $"{importDir}/{new string(parsedNote.Notebook.Name.Trim().Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray())}/{new string(parsedNote.Title.Trim().Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray())}.docx";
             importPath = Path.GetDirectoryName(fullPath);
 
             // Создаем директорию, если она не существует
@@ -301,6 +302,24 @@ namespace ZohoHtmlToWordWPF
 
                 }
             }
+            if (block.IntersectableTypeOfContent.HasFlag(IntersectableContentType.ColoredText))
+            {
+                if (block.ColourCode is not null)
+                    textRange.CharacterFormat.TextColor = ColorTranslator.FromHtml(block.ColourCode);
+                else textRange.CharacterFormat.TextColor = Color.Black;
+            }
+            if (block.IntersectableTypeOfContent.HasFlag(IntersectableContentType.ColoredMarker))
+            {
+                if (block.HighlightCode is not null)
+                    textRange.CharacterFormat.HighlightColor = ColorTranslator.FromHtml(block.HighlightCode);
+                else textRange.CharacterFormat.HighlightColor = Color.LightGreen;
+            }
+            if (block.IntersectableTypeOfContent.HasFlag(IntersectableContentType.ResizedText))
+            {
+                if (block.Size is not null)
+                    textRange.CharacterFormat.FontSize = (float)block.Size;
+            }
+
         }
 
         private void AddImage(Document document, ContentBlock block)
