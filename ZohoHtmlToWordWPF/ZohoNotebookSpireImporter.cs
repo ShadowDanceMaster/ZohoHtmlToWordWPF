@@ -179,6 +179,11 @@ namespace ZohoHtmlToWordWPF
 
                 paragraph.ApplyStyle(BuiltinStyle.Normal);
             }
+            else
+            {
+                textRange = paragraph.AppendText(string.Empty);
+                paragraph.ApplyStyle(BuiltinStyle.Normal);
+            }
             if (block.BasicTypeOfContent == ContentType.Table)
             {
                 table = section.AddTable(true);
@@ -208,7 +213,7 @@ namespace ZohoHtmlToWordWPF
 
             // Применяем стили в зависимости от типа контента
             ApplyContentTypeStyles(paragraph, textRange, block, table);
-            ApplyListStyles(paragraph, block);
+            ApplyListStyles(paragraph, ref textRange, block);
             ApplyIntersectableStyles(ref paragraph, textRange, block);
 
         }
@@ -244,7 +249,7 @@ namespace ZohoHtmlToWordWPF
             }
         }
 
-        private void ApplyListStyles(Paragraph paragraph, ContentBlock block)
+        private void ApplyListStyles(Paragraph paragraph, ref TextRange textRange, ContentBlock block)
         {
             switch (block.ListTypeOfContent)
             {
@@ -258,7 +263,7 @@ namespace ZohoHtmlToWordWPF
 
                 case ListContentType.CheckList:
                     // Получаем существующий текст и добавляем чекбокс
-                    paragraph.AppendText("☐ " + block.Text);
+                    textRange=paragraph.AppendText("☐ " + block.Text);
                     break;
                 default:
                     break;
@@ -269,6 +274,13 @@ namespace ZohoHtmlToWordWPF
         {
             if (string.IsNullOrEmpty(block.Text))
                 return;
+            if (block.IntersectableTypeOfContent.HasFlag(IntersectableContentType.Link))
+            {
+                if (!string.IsNullOrEmpty(block.LinkHref))
+                {
+                    AddHyperlink(ref paragraph, ref textRange, block.LinkHref, block.Text!);
+                }
+            }
 
             if (block.IntersectableTypeOfContent.HasFlag(IntersectableContentType.Bold))
             {
@@ -289,19 +301,6 @@ namespace ZohoHtmlToWordWPF
             {
                 textRange.CharacterFormat.IsStrikeout = true;
             }
-
-            // Добавляем ссылку если есть
-            if (block.IntersectableTypeOfContent.HasFlag(IntersectableContentType.Link))
-            {
-                if (!string.IsNullOrEmpty(block.LinkHref))
-                {
-                    AddHyperlink(ref paragraph, block.LinkHref, block.Text!);
-                }
-                else
-                {
-
-                }
-            }
             if (block.IntersectableTypeOfContent.HasFlag(IntersectableContentType.ColoredText))
             {
                 if (block.ColourCode is not null)
@@ -319,6 +318,9 @@ namespace ZohoHtmlToWordWPF
                 if (block.Size is not null)
                     textRange.CharacterFormat.FontSize = (float)block.Size;
             }
+
+
+
 
         }
 
@@ -361,12 +363,12 @@ namespace ZohoHtmlToWordWPF
             }
         }
 
-        private void AddHyperlink(ref Paragraph paragraph, string href, string text)
+        private void AddHyperlink(ref Paragraph paragraph, ref TextRange textRange, string href, string text)
         {
             try
             {
                 // Добавляем гиперссылку
-                paragraph.AppendHyperlink(
+                textRange=paragraph.AppendHyperlink(
                     href,
                     !string.IsNullOrEmpty(text) ? text : href,
                     HyperlinkType.WebLink
@@ -375,7 +377,7 @@ namespace ZohoHtmlToWordWPF
             catch (Exception ex)
             {
                 // В случае ошибки просто добавляем текст ссылки
-                paragraph.AppendText($"(ошибка) {text} [{href}]");
+                textRange=paragraph.AppendText($"(ошибка) {text} [{href}]");
             }
         }
     }

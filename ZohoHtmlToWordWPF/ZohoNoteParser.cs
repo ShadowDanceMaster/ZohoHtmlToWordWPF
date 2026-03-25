@@ -162,7 +162,6 @@ namespace ZohoHtmlToWordWPF
                     if (nodes[i].HasAttributes)
                     {
                         nodeAttributes = nodes[i].Attributes;
-                        var countClassAttrs=0;
                         if (nodeAttributes.Contains("class"))
                         {
                             if (nodeAttributes["class"].Value == "checklist")
