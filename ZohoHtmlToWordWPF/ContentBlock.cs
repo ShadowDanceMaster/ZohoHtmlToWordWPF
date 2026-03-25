@@ -40,7 +40,6 @@ namespace ZohoHtmlToWordWPF
                     {
                         LinkHref = o.Item2.First(at => at.Name == "href").Value;
 
-                        SingletonForMainWindow.GetInstance().WriteLineToRtb("Link href=" + LinkHref);
                     }
                     if (o.Item2 != null && o.Item2.Select(a => a.Name).Contains("style"))
                     {

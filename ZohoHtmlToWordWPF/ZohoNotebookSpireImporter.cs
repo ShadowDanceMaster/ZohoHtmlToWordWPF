@@ -23,7 +23,8 @@ namespace ZohoHtmlToWordWPF
         public void ImportParsedNoteToWord(ParsedNote parsedNote, string importDir, string exportDir)
         {
             this.exportDir = exportDir;
-            string fullPath = $"{importDir}/{new string(parsedNote.Notebook.Name.Trim().Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray())}/{new string(parsedNote.Title.Trim().Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray())}.docx";
+            var filePath= $"{new string(parsedNote.Notebook.Name.Trim().Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray())}/{new string(parsedNote.Title.Trim().Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray())}.docx";
+            string fullPath = $"{importDir}/{filePath}";
             importPath = Path.GetDirectoryName(fullPath);
 
             // Создаем директорию, если она не существует
@@ -31,7 +32,11 @@ namespace ZohoHtmlToWordWPF
             {
                 Directory.CreateDirectory(importPath);
             }
-
+            if (File.Exists(fullPath))
+            {
+                SingletonForMainWindow.GetInstance().WriteLineToRtb($"файл {filePath} уже существует");
+                return;
+            }
             // Создаем новый документ
             Document document = new Document();
 
@@ -60,7 +65,6 @@ namespace ZohoHtmlToWordWPF
                 document.Dispose();
             }
         }
-
         private void AddTitle(Document document, string title)
         {
             if (string.IsNullOrEmpty(title))
@@ -240,9 +244,9 @@ namespace ZohoHtmlToWordWPF
                     paragraph.Format.RightIndent = 20;
                     break;
                 case ContentType.Table:
-                    table.Format.Paddings.All = 10;
-                    table.Format.Borders.BorderType = BorderStyle.Single;
-                    table.Format.Borders.Color = Color.Black;
+                    table.TableFormat.Paddings.All = 10;
+                    table.TableFormat.Borders.BorderType = BorderStyle.Single;
+                    table.TableFormat.Borders.Color = Color.Black;
                     break;
                 default:
                     break;

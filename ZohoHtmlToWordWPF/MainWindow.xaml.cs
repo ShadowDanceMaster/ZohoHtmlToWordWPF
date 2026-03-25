@@ -194,6 +194,8 @@ namespace ZohoHtmlToWordWPF
                 ChangeButtonEnable(btnPauseResume, true);
                 ChangeButtonContent(btnPauseResume, "Пауза");
                 ChangeButtonEnable(btnStart, false);
+                ChangeButtonEnable(btnExport, false);
+                ChangeButtonEnable(btnImport, false);
                 await ProcessFilesAsync(cts.Token);
             }
             catch (OperationCanceledException)
@@ -211,6 +213,8 @@ namespace ZohoHtmlToWordWPF
                 ChangeButtonEnable(btnPauseResume, false);
                 ChangeButtonContent(btnPauseResume, "Пауза");
                 ChangeButtonEnable(btnStart, true);
+                ChangeButtonEnable(btnExport, true);
+                ChangeButtonEnable(btnImport, true);
             }
 
         }

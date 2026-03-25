@@ -245,8 +245,7 @@ namespace ZohoHtmlToWordWPF
                         if (!string.IsNullOrWhiteSpace(nodes[i].InnerText))
                         {
                             AddToBlocks(htmlTagStack, HttpUtility.HtmlDecode(nodes[i].InnerText));
-                            //Убрать логи потом
-                            SingletonForMainWindow.GetInstance().WriteLineToRtb($"adding innerText to blocks {blockCount++}: {HttpUtility.HtmlDecode(nodes[i].InnerText)}");
+                            
                         }
                         InitiateHtmlTagStackPop(mainNode);//избыточно?
                     }
