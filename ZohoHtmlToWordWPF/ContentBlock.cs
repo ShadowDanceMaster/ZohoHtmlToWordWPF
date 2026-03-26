@@ -25,7 +25,6 @@ namespace ZohoHtmlToWordWPF
                     if (BasicTypeOfContent == ContentType.Image && o.Item2!=null && o.Item2.Select(a=>a.Name).Contains("src"))
                     {
                         ImageName = o.Item2.First(at => at.Name == "src").Value;
-                        SingletonForMainWindow.GetInstance().WriteLineToRtb("Image src=" + ImageName);
                     }
                     
                 }

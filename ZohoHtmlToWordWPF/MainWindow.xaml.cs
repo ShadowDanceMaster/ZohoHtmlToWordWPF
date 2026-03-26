@@ -51,8 +51,10 @@ namespace ZohoHtmlToWordWPF
             progBarForOneFile.Minimum = 0;
             progBarForOneFile.Maximum = 100;
         }
+        
         private async Task ProcessFilesAsync(CancellationToken token)
         {
+            
             WriteLineToRtb("Опускаются сумерки. Поют соловьи, падают тусклые звёзды.");
             ChangeProgBars(0, 0);
 

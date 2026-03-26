@@ -209,7 +209,6 @@ namespace ZohoHtmlToWordWPF
                         && nodeAttributes.Select(at => at.Name).Any()
                         && nodeAttributes.Select(at => at.Name).Contains("src"))
                     {
-                        SingletonForMainWindow.GetInstance().WriteLineToRtb($"adding image to blocks {blockCount++}:");
                         AddToBlocks(htmlTagStack);
                     }
                     if (nodeNameObj is ContentType && (ContentType)nodeNameObj == ContentType.Table)

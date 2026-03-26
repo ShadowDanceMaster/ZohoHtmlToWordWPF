@@ -15,6 +15,9 @@ namespace ZohoHtmlToWordWPF
     {
         string importPath = string.Empty;
         string exportDir = string.Empty;
+        string fullPath = string.Empty;
+        int countSubFiles = 0;
+        int countUnnamedNote = 0;
         /// <summary>
         /// Импортирует распаршенную заметку в ворд с использованием Spire.Doc.
         /// </summary>
@@ -23,8 +26,9 @@ namespace ZohoHtmlToWordWPF
         public void ImportParsedNoteToWord(ParsedNote parsedNote, string importDir, string exportDir)
         {
             this.exportDir = exportDir;
-            var filePath= $"{new string(parsedNote.Notebook.Name.Trim().Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray())}/{new string(parsedNote.Title.Trim().Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray())}.docx";
-            string fullPath = $"{importDir}/{filePath}";
+            var parsedNoteNotebookName = parsedNote.Notebook != null ? new string(parsedNote.Notebook.Name.Trim().Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray()) : "Безымянный";
+            var filePath= $"{parsedNoteNotebookName}/{new string(parsedNote.Title.Trim().Where(c => !Path.GetInvalidFileNameChars().Contains(c)).ToArray()) ?? $"безымянная заметка {++countUnnamedNote}"}.docx";
+            fullPath = $"{importDir}/{filePath}";
             importPath = Path.GetDirectoryName(fullPath);
 
             // Создаем директорию, если она не существует
@@ -37,11 +41,16 @@ namespace ZohoHtmlToWordWPF
                 SingletonForMainWindow.GetInstance().WriteLineToRtb($"файл {filePath} уже существует");
                 return;
             }
+            else
+            {
+                SingletonForMainWindow.GetInstance().WriteLineToRtb($"файл {filePath} будет добавлен");
+            }
             // Создаем новый документ
             Document document = new Document();
 
             try
             {
+                countSubFiles = 0;
                 // Добавляем заголовок
                 AddTitle(document, parsedNote.Title);
 
@@ -55,10 +64,24 @@ namespace ZohoHtmlToWordWPF
                 AddTags(document, parsedNote.Tags);
 
                 // Добавляем контентные блоки
-                AddContentBlocks(document, parsedNote.ContentBlocks);
+                AddContentBlocks(ref document, parsedNote.ContentBlocks);
 
-                // Сохраняем документ
-                document.SaveToFile(fullPath, FileFormat.Docx);
+                if (countSubFiles > 0)
+                {
+                    countSubFiles++;
+                    document.SaveToFile(new string(fullPath.Take(fullPath.Length - 5).ToArray()) + $" ({countSubFiles}).docx", FileFormat.Docx);
+                    SingletonForMainWindow.GetInstance().WriteLineToRtb($"файл {filePath} разбит на {countSubFiles} частей");
+                    string[] inputFilesPaths = new string[countSubFiles];
+                    for (int i=1; i <= inputFilesPaths.Length; i++)
+                    {
+                        inputFilesPaths[i-1] = new string(fullPath.Take(fullPath.Length - 5).ToArray()) + $" ({i}).docx";
+                    }
+                    DocumentMerger.MergeDocuments(inputFilesPaths, new string(fullPath.Take(fullPath.Length - 5).ToArray()) + $" (общий).docx");
+                }
+                else
+                {
+                    document.SaveToFile(fullPath, FileFormat.Docx);
+                }
             }
             finally
             {
@@ -148,18 +171,18 @@ namespace ZohoHtmlToWordWPF
             document.Sections[0].AddParagraph();
         }
 
-        private void AddContentBlocks(Document document, List<ContentBlock> contentBlocks)
+        private void AddContentBlocks(ref Document document, List<ContentBlock> contentBlocks)
         {
             if (contentBlocks == null || contentBlocks.Count == 0)
                 throw new Exception("Нет блока контента");
 
             foreach (var block in contentBlocks)
             {
-                AddContentBlock(document, block);
+                AddContentBlock(ref document, block);
             }
         }
 
-        private void AddContentBlock(Document document, ContentBlock block)
+        private void AddContentBlock(ref Document document, ContentBlock block)
         {
             if (block == null)
                 return;
@@ -172,6 +195,16 @@ namespace ZohoHtmlToWordWPF
             }
             Section section = document.Sections.Count > 0 ? document.Sections[0] : document.AddSection();
             // Создаем параграф для текстового блока
+
+            int countParagraphs = section.Paragraphs.Count;
+            
+            if (countParagraphs > 400)
+            {
+                countSubFiles++;
+                document.SaveToFile(new string(fullPath.Take(fullPath.Length-5).ToArray())+$" ({countSubFiles}).docx", FileFormat.Docx);
+                document = new Document();
+            }
+
             Paragraph paragraph = section.AddParagraph();
             Table table = null;
             // Добавляем текст
